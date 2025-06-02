@@ -3,7 +3,7 @@ import pandas as pd
 from google.cloud import bigquery
 
 
-def get_csv_from_bd():
+def get_csv_from_bq():
     '''
     Fetch the 'train_labels' table from bq dataset 'spatial-encoder-456811-u6.datasets_wagon1992_group_project' and saves it in 'data/csv_raw'
     '''
