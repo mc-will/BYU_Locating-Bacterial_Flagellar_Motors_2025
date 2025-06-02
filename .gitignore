@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.python-version
 .Python
 build/
 develop-eggs/
@@ -195,7 +196,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Data
+pictures
+csvs
 ./pictures
 ./raw_data
-
