@@ -13,6 +13,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.python-version
 .Python
 build/
 develop-eggs/
@@ -31,6 +32,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.python-version
+
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -198,3 +201,5 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+data
