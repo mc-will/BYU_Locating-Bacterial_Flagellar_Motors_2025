@@ -196,7 +196,5 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-pictures
-csvs
-./pictures
-./raw_data
+data
+
