@@ -1,8 +1,6 @@
-# test de Will
-data_viz.ipynb
 data/
 .python-version
-
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -202,4 +200,4 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-data
+
