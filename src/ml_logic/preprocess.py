@@ -12,6 +12,22 @@ from src.utils.data import get_csv_from_bq,select_tomo_ids
 def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1],
                        y_shape_range=(960, 960), x_shape_range=(928, 928)):
 
+    ''''
+    function to return the path to the selected images (which type, which tomos, how many motors,
+    shape of the images)
+    Parameters:
+    ----------
+    df = database (train)
+    dir_images(str) = directory with the images we want to feed to the model
+    num_slices, num_motors, y_shape_range, x_shape_range = params for the select_tomo_ids function
+
+    Returns:
+    -------
+    filtered_image_paths (list or np.array): List of image paths.
+
+    labels (np.array or list): Corresponding labels.
+    '''
+    
      # Selecting tomos according to our whishes
     tomo_ids_1 = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors,
                     y_shape_range=y_shape_range, x_shape_range=x_shape_range)

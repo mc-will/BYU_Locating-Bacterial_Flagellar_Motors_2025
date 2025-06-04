@@ -7,19 +7,17 @@ from typing import Tuple
 # Timing the TF import
 print(Fore.BLUE + "\nLoading TensorFlow..." + Style.RESET_ALL)
 start = time.perf_counter()
-
+import tensorflow as tf
 from tensorflow import keras
 from keras import Model, Sequential, layers, regularizers, optimizers
 from keras.callbacks import EarlyStopping
 
 def train_model(
         model: Model,
-        X: np.ndarray,
-        y: np.ndarray,
-        batch_size=256,
-        patience=2,
-        validation_data=None, # overrides validation_split
-        validation_split=0.3
+        train_ds: tf.data.Dataset,
+        val_ds: tf.data.Dataset,
+        batch_size=32,
+        patience=10,
     ) -> Tuple[Model, dict]:
     """
     Fit the model and return a tuple (fitted_model, history)
@@ -34,10 +32,8 @@ def train_model(
     )
 
     history = model.fit(
-        X,
-        y,
-        validation_data=validation_data,
-        validation_split=validation_split,
+        train_ds,
+        val_ds,
         epochs=100,
         batch_size=batch_size,
         callbacks=[es],
