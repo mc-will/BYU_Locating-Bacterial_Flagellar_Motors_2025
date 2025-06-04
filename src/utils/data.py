@@ -10,7 +10,7 @@ def get_csv_from_bq():
     gcp_project = 'spatial-encoder-456811-u6'
     query = 'SELECT * FROM `spatial-encoder-456811-u6.datasets_wagon1992_group_project.train_labels`'
 
-    client = bigquery.Client(project=gcp_project))
+    client = bigquery.Client(project=gcp_project)
     query_job = client.query(query)
     df = query_job.result().to_dataframe().reset_index().drop(columns='index')
 
