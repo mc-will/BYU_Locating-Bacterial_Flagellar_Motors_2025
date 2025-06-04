@@ -29,16 +29,16 @@ def list_all_pictures_in_path(dir_path):
     '''
     return [os.path.join(dir_path, f) for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
 
-def padd_mean_picture(size = 960):
+def padd_mean_picture(input_dir, output_dir, size = 960):
     '''
     Pads toutes les images du repertoire mean_image avec des pixels blancs pour les rendre à la taille de 960x960.
     Parameters:
+        input_dir: le chemin du repertoire des images à padder
+        output_dir: le chemin du repertoire des images paddées
         size: taille finale de l'image avec padding (carrée)
     Returns:
         None
     '''
-    input_dir = './data/pictures_process/mean_image/'
-    output_dir = './data/pictures_process/mean_image_padded/'
     list_of_pictures_path = list_all_pictures_in_path(input_dir)
     for picture_path in list_of_pictures_path:
         file_name = os.path.basename(picture_path)
@@ -46,4 +46,6 @@ def padd_mean_picture(size = 960):
 
 
 if __name__ == '__main__':
-    padd_mean_picture()
+    #padd_mean_picture(input_dir='./data/pictures_process/mean_image/',output_dir = './data/pictures_process/mean_image_padded/')
+    padd_mean_picture(input_dir='./data/pictures_process/adaptequal_05/',output_dir = './data/pictures_process/adaptequal_05_padded/')
+
