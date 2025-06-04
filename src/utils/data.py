@@ -2,6 +2,8 @@ import pandas as pd
 
 from google.cloud import bigquery
 
+from utils.render_motor_position import get_motor_coordinates, get_slice_file_path
+
 
 def get_csv_from_bq():
     '''
@@ -37,3 +39,21 @@ def select_tomo_ids(df, number_of_slices=[300], number_of_motors=[0, 1], y_shape
 
 
     return df.tomo_id
+
+
+def get_best_slice(df, tomogram_id):
+    '''
+    Find the coordinates of the motor (only work with 1 motor tomogram), the use the z to get the picture_path where
+    the motor is located, i.e. the 'best slice'
+
+            Parameters:
+                df (pd.Dataframe): the dataset to find coordinates
+                tomogram_id (string): the tomogram id
+
+            Returns:
+                best_slice_path (string): the path of the picture of the 'best slice' (where the motor is located)
+
+    '''
+    x, y, z = get_motor_coordinates(df, tomogram_id)
+    best_slice_path = get_slice_file_path(tomogram_id, z)
+    return best_slice_path
