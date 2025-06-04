@@ -35,6 +35,37 @@ def _get_motor_coordinates(df, tomogram_id):
     return x, y, z
 
 
+def draw_on_image(path_image_source, dir_path_destination, x, y, x_pred=-1, y_pred=-1):
+    print(f'draw_on_image: {path_image_source} {dir_path_destination} {x} {y} {x_pred} {y_pred}')
+    def draw_marker(dessin, x, y, rayon, color):
+        rayon = 25
+        left_up = (x - rayon, y - rayon)
+        right_down = (x + rayon, y + rayon)
+        dessin.ellipse([left_up, right_down], outline=color, width=2)
+
+        # dessin d'un point au centre du cercle
+        dessin.ellipse(
+            [(x - 1, y - 1), (x + 1, y + 1)],
+            fill=color, outline=color)
+
+    # Ouvre l'image
+    img = Image.open(path_image_source).convert('RGB')
+    # Prépare le dessin
+    dessin = ImageDraw.Draw(img)
+
+    draw_marker(dessin, x, y, 25, 'green')
+    if x_pred != -1 and y_pred != -1:
+        draw_marker(dessin, x_pred, y_pred, 25, 'red')
+
+    # Sauvegarde
+    name_image_source = path_image_source.split('/')[-1]
+    output_file = os.path.join(dir_path_destination, name_image_source)
+    if not os.path.exists(dir_path_destination):
+        print(f'create directory: {dir_path_destination}')
+        os.makedirs(dir_path_destination)
+    print(f'save image: {output_file}')
+    img.save(output_file)
+
 def _render_tomogramme_to_file(tomogram_id, z, y, x):
     '''
     Render d'un tomogramme avec un moteur dans le repertoire "output_path"
@@ -46,31 +77,8 @@ def _render_tomogramme_to_file(tomogram_id, z, y, x):
     '''
     # recherche du chemin de l'image
     image_path = _get_slice_file_path(tomogram_id, z)
-
-    # Ouvre l'image
-    img = Image.open(image_path).convert('RGB')
-
-    # Prépare le dessin
-    draw = ImageDraw.Draw(img)
-
-    # Dessine un cercle (défini par son bounding box)
-    rayon = 25
-    left_up = (x - rayon, y - rayon)
-    right_down = (x + rayon, y + rayon)
-    draw.ellipse([left_up, right_down], outline='red', width=2)
-
-    # dessin d'un point au centre du cercle
-    draw.ellipse(
-        [(x - 1, y - 1), (x + 1, y + 1)],
-        fill='red', outline='red'
-    )
-
-    # Sauvegarde
     output_path = './data/pictures_process/motor_position/'
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    img.save(f'{output_path}/{tomogram_id}_{z}.jpg')
-
+    draw_on_image(image_path, output_path, x, y)
 
 def render_all_tomogrammes():
     '''
