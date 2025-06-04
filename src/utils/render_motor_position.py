@@ -4,7 +4,6 @@ from PIL import Image, ImageDraw
 import pandas as pd
 
 def get_slice_file_path(tomogram_id, z):
-def get_slice_file_path(tomogram_id, z):
     '''
     accès au chemin d'une slice en fonction de l'identifiant du tomogramme et de l'indice de la slice
     Parameters:
@@ -18,7 +17,6 @@ def get_slice_file_path(tomogram_id, z):
     image_path = os.path.join(tomogrammes_train_dir, tomogram_id, file_name)
     return image_path
 
-def get_motor_coordinates(df, tomogram_id):
 def get_motor_coordinates(df, tomogram_id):
     '''
     Récupération des coordonnées du moteur dans le tomogramme
