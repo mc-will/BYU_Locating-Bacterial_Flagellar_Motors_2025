@@ -154,6 +154,6 @@ def batches_images_ram(
         return train_ds, val_ds, test_ds
 
     else:
-        # Just map, batch and prefetch full dataset
+        # Just map and batch
         dataset = dataset.map(read_img_jpg).batch(batch_size)
         return dataset
