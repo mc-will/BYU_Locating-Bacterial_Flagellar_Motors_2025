@@ -47,3 +47,38 @@ def train_model(
     print(f"✅ Model trained with min val MSE: {round(np.min(history.history['val_mse']), 2)}")
 
     return model, history
+
+
+def evaluate_model(
+        model: Model,
+        X: np.ndarray,
+        y: np.ndarray,
+        batch_size=32
+    ) -> Tuple[Model, dict]:
+    """
+    Evaluate trained model performance on the dataset
+    """
+
+    print(Fore.BLUE + f"\nEvaluating model on {len(X)} rows..." + Style.RESET_ALL)
+
+    if model is None:
+        print(f"\n❌ No model to evaluate")
+        return None
+
+    print(model)
+
+    metrics = model.evaluate(
+        x=X,
+        y=y,
+        batch_size=batch_size,
+        verbose=0,
+        # callbacks=None,
+        return_dict=True
+    )
+
+    loss = metrics["loss"]
+    mse = metrics["mse"]
+
+    print(f"✅ Model evaluated, MAE: {round(mse, 2)}")
+
+    return metrics
