@@ -33,7 +33,7 @@ def train_model(
 
     history = model.fit(
         train_ds,
-        val_ds,
+        validation_data=val_ds,
         epochs=100,
         batch_size=batch_size,
         callbacks=[es],

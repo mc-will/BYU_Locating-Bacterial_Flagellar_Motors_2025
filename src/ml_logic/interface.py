@@ -49,7 +49,7 @@ def train(model,
 
     model, history = train_model(
         model, train_ds,
-        validation_data=val_ds,
+        val_ds,
         batch_size=batch_size,
         patience=patience
     )
