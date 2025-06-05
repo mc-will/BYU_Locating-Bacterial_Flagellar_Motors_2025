@@ -25,7 +25,7 @@ def train_model(
     print(Fore.BLUE + "\nTraining model..." + Style.RESET_ALL)
 
     es = EarlyStopping(
-        monitor="val_loss",
+        monitor="val_euclidean_loss",
         patience=patience,
         restore_best_weights=True,
         verbose=1
@@ -40,7 +40,7 @@ def train_model(
         verbose=1
     )
 
-    print(f"✅ Model trained with min val MSE: {round(np.min(history.history['val_mse']), 2)}")
+    print(f"✅ Model trained with min val Eucledian Loss: {round(np.min(history.history['val_euclidean_loss']), 2)}")
 
     return model, history
 
@@ -72,9 +72,9 @@ def evaluate_model(
         return_dict=True
     )
 
-    loss = metrics["loss"]
-    mse = metrics["mse"]
+    loss = metrics["euclidean_loss"]
+    mse = metrics["euclidean_loss"]
 
-    print(f"✅ Model evaluated, MAE: {round(mse, 2)}")
+    print(f"✅ Model evaluated, euclidean_loss: {round(euclidean_loss, 2)}")
 
     return metrics

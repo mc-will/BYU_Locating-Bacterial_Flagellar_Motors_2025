@@ -54,7 +54,7 @@ def train(model,
         patience=patience
     )
 
-    val_mse = np.min(history.history['val_mse'])
+    val_mse = np.min(history.history['val_euclidean_loss'])
 
     params = dict(
         model_type=model_type,
@@ -94,7 +94,7 @@ def evaluate(
     assert model is not None
 
     metrics_dict = evaluate_model(model=model, X=X_test, y=y_test)
-    mse = metrics_dict["mse"]
+    mse = metrics_dict["euclidean_loss"]
 
     params = dict(
         context="evaluate"
