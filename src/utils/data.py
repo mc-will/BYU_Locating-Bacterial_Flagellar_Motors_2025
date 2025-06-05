@@ -55,5 +55,5 @@ def get_best_slice(df, tomogram_id):
 
     '''
     x, y, z = get_motor_coordinates(df, tomogram_id)
-    best_slice_path = get_slice_file_path(tomogram_id, z)
+    best_slice_path = get_slice_file_path(tomogram_id, int(z))
     return best_slice_path
