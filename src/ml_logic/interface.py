@@ -6,8 +6,8 @@ from colorama import Fore, Style
 from dateutil.parser import parse
 
 from src.params import *
-from src.ml_logic.model import train_model
-from src.ml_logic.registry import save_model, save_results
+from src.ml_logic.model import train_model, evaluate_model
+from src.ml_logic.registry import save_model, save_results, load_model
 from src.ml_logic.registry import mlflow_run, mlflow_transition_model
 
 
@@ -70,3 +70,54 @@ def train(model,
     mlflow_transition_model("None", "staging", model_name=model_name)
 
     print("✅ train() done \n")
+
+
+
+
+
+
+
+@mlflow_run
+def evaluate(
+        X_test,
+        y_test,
+        model_name,
+        stage: str = "Staging"
+    ) -> float:
+    """
+    Evaluate the performance of the latest staging model on with name = 'model_name' on X_test, y_test
+    Return MSE as a float
+    """
+    print(Fore.MAGENTA + "\n⭐️ Use case: evaluate" + Style.RESET_ALL)
+
+    model = load_model(model_name, stage=stage)
+    assert model is not None
+
+    metrics_dict = evaluate_model(model=model, X=X_test, y=y_test)
+    mse = metrics_dict["mse"]
+
+    params = dict(
+        context="evaluate"
+    )
+
+    save_results(params=params, metrics=metrics_dict)
+
+    print("✅ evaluate() done \n")
+
+    return mse
+
+
+def pred(X_pred: pd.DataFrame, model_name, stage='Staging') -> np.ndarray:
+    """
+    Make a prediction using the latest trained model
+    """
+
+    print("\n⭐️ Use case: predict")
+
+    model = load_model(model_name, stage=stage)
+    assert model is not None
+
+    y_pred = model.predict(X_pred)
+
+    print("\n✅ prediction done: ", y_pred, y_pred.shape, "\n")
+    return y_pred
