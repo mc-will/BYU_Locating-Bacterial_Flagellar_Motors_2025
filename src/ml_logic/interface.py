@@ -4,11 +4,12 @@ import pandas as pd
 from pathlib import Path
 from colorama import Fore, Style
 from dateutil.parser import parse
+from keras.callbacks import EarlyStopping
 
-from src.params import *
-from src.ml_logic.model import train_model, evaluate_model
-from src.ml_logic.registry import save_model, save_results, load_model
-from src.ml_logic.registry import mlflow_run, mlflow_transition_model
+from params import *
+from ml_logic.model import train_model, evaluate_model
+from ml_logic.registry import save_model, save_results, load_model
+from ml_logic.registry import mlflow_run, mlflow_transition_model
 
 
 
@@ -116,12 +117,12 @@ def pred(X_pred: pd.DataFrame, model_name, stage='Staging') -> np.ndarray:
     print("\n✅ prediction done: ", y_pred, y_pred.shape, "\n")
     return y_pred
 
-################# Willian
+################# for model of calsification
 @mlflow_run
 def train_classification(
         model,
-        train_ds,
-        val_ds,
+        X_train, y_train,
+        X_val, y_val,
         model_type: str,
         preprocess_type: str,
         model_name: str,
@@ -132,15 +133,27 @@ def train_classification(
 
     print(Fore.GREEN + "\n🏋️ Starting model training ..." + Style.RESET_ALL)
 
-    model, history = train_model(
-                                model,
-                                train_ds,
-                                val_ds,
-                                batch_size=batch_size,
-                                patience=patience
-                                )
+    es = EarlyStopping(
+        monitor="val_loss",
+        patience=patience,
+        restore_best_weights=True,
+        verbose=1
+    )
 
-    f_beta_score = np.max(history.history['FBetaScore']) # Max
+    history = model.fit(
+        X_train,
+        y_train,
+        validation_data=[X_val,y_val],
+        epochs=10,
+        batch_size=batch_size,
+        callbacks=[es],
+        verbose=1
+    )
+
+    print('Cheack point matrics:', history.history.keys())
+
+    # f_beta_score = np.max(history.history['FBetaScore']) # Max
+    fbeta_score = np.max(history.history['fbeta_score']) # Max
     params = dict(
         model_type=model_type,
         preprocess_type=preprocess_type
@@ -150,7 +163,7 @@ def train_classification(
 
     save_results(
         params=params,
-        metrics=dict(f_betas_score=f_beta_score))
+        metrics=dict(f_betas_score=fbeta_score))
 
     save_model(model_name,
                model=model
