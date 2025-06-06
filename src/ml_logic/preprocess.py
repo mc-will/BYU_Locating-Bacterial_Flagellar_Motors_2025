@@ -7,10 +7,10 @@ import glob
 import sys
 sys.path.append('../src')
 
-from src.utils.data import get_csv_from_bq,select_tomo_ids
+from utils.data import get_csv_from_bq,select_tomo_ids
+# from src.utils.data import get_csv_from_bq,select_tomo_ids
 
-def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1],
-                       y_shape_range=(960, 960), x_shape_range=(928, 928)):
+def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
 
     ''''
     function to return the path to the selected images (which type, which tomos, how many motors,
@@ -27,35 +27,38 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1],
 
     labels (np.array or list): Corresponding labels.
     '''
-    
-     # Selecting tomos according to our whishes
-    tomo_ids_1 = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors,
-                    y_shape_range=y_shape_range, x_shape_range=x_shape_range)
 
-    # Creating database with our selected tomos
-    df_select = df[df['tomo_id'].isin(tomo_ids_1)]
+    # Step 1: Filter tomos
+    tomo_ids = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors)
+    df_select = df[df['tomo_id'].isin(tomo_ids)].copy()
 
-    # Selecting directory with images we want to feed to our model (e.x., mean, adaptequal)
+    # Step 2: Set up labels
+    df_select['motor_coord'] = df_select.apply(lambda row: (row['Motor_axis_2'], row['Motor_axis_1']), axis=1)
+
+    # Step 3: Load all images
     dir_mean_image = f'../data/pictures_process/{dir_images}'
-    keywords = set(tomo_ids_1)
-
-    # Find all jpg image paths recursively
     all_images = glob.glob(os.path.join(dir_mean_image, '**', '*.jpg'), recursive=True)
 
-    # Filter image paths where the filename contains any of the keywords
-    filtered_image_paths = [
-        path for path in all_images
-        if any(kw in os.path.basename(path) for kw in keywords)
-    ]
+    print(f"Found {len(all_images)} images in {dir_mean_image}")
 
-    # Defining the motor coordinates as a tuple, to then use as a target (we will call them labels)
-    df_select['motor_coord'] = df_select.apply(lambda row: (row['Motor_axis_2'], row['Motor_axis_1']), axis=1).copy()
+    # Step 4: Match images using substring matching
+    filtered_image_paths = []
+    labels = []
 
+    for _, row in df_select.iterrows():
+        tomo_id = row['tomo_id']
+        matched = [p for p in all_images if tomo_id in os.path.basename(p)]
 
-    # Prepare labels as float32 NumPy array
-    labels = np.array(df_select['motor_coord'].tolist(), dtype=np.float32)
+        if matched:
+            filtered_image_paths.append(matched[0])  # If multiple, take the first
+            labels.append(row['motor_coord'])
+        else:
+            print(f"⚠️ No image found for tomo_id: {tomo_id}")
 
-    return filtered_image_paths,labels
+    print(f"Matched {len(filtered_image_paths)} image-label pairs")
+
+    labels = np.array(labels, dtype=np.float32)
+    return filtered_image_paths, labels
 
 
 # Define image reading function
