@@ -71,12 +71,6 @@ def train(model,
 
     print("✅ train() done \n")
 
-
-
-
-
-
-
 @mlflow_run
 def evaluate(
         X_test,
@@ -106,7 +100,7 @@ def evaluate(
 
     return mse
 
-
+# to do check if need ml run
 def pred(X_pred: pd.DataFrame, model_name, stage='Staging') -> np.ndarray:
     """
     Make a prediction using the latest trained model
@@ -121,3 +115,47 @@ def pred(X_pred: pd.DataFrame, model_name, stage='Staging') -> np.ndarray:
 
     print("\n✅ prediction done: ", y_pred, y_pred.shape, "\n")
     return y_pred
+
+################# Willian
+@mlflow_run
+def train_classification(
+        model,
+        train_ds,
+        val_ds,
+        model_type: str,
+        preprocess_type: str,
+        model_name: str,
+        batch_size = 32,
+        patience = 10
+    ) -> float:
+
+
+    print(Fore.GREEN + "\n🏋️ Starting model training ..." + Style.RESET_ALL)
+
+    model, history = train_model(
+                                model,
+                                train_ds,
+                                val_ds,
+                                batch_size=batch_size,
+                                patience=patience
+                                )
+
+    f_beta_score = np.max(history.history['FBetaScore']) # Max
+    params = dict(
+        model_type=model_type,
+        preprocess_type=preprocess_type
+        # rajouter le hash du commit
+        # checker le cours pour d'autres paramètres à intégrer
+    )
+
+    save_results(
+        params=params,
+        metrics=dict(f_betas_score=f_beta_score))
+
+    save_model(model_name,
+               model=model
+               )
+
+    mlflow_transition_model("None", "staging", model_name=model_name)
+
+    print("✅ train() done \n")
