@@ -28,7 +28,8 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
     labels (np.array or list): Corresponding labels.
     '''
 
-    # Step 1: Filter tomos
+   # Step 1: Filter tomos
+
     tomo_ids = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors)
     df_select = df[df['tomo_id'].isin(tomo_ids)].copy()
 
@@ -56,7 +57,7 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
             print(f"⚠️ No image found for tomo_id: {tomo_id}")
 
     print(f"Matched {len(filtered_image_paths)} image-label pairs")
-
+    
     labels = np.array(labels, dtype=np.float32)
     return filtered_image_paths, labels
 
@@ -146,13 +147,18 @@ def batches_images_ram(
     """
 
     dataset_size = len(filtered_image_paths)
-
-    # Create dataset from (path, label)
-    dataset = tf.data.Dataset.from_tensor_slices((filtered_image_paths, labels))
-
-    # Shuffle dataset if requested
+    # Combine and optionally shuffle the data as a list of tuples
+    data = list(zip(filtered_image_paths, labels))
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=dataset_size, seed=seed)
+        rng = np.random.default_rng(seed)
+        rng.shuffle(data)
+
+    # Unzip the shuffled data back
+    filtered_image_paths, labels = zip(*data)
+
+    # Convert back to lists or arrays
+    filtered_image_paths = list(filtered_image_paths)
+    labels = list(labels)
 
     if split:
         # Compute sizes
@@ -160,19 +166,25 @@ def batches_images_ram(
         test_size = int(test_fraction * dataset_size)
         train_size = dataset_size - val_size - test_size
 
-        # Split datasets carefully
-        test_ds = dataset.take(test_size)
-        val_ds = dataset.skip(test_size).take(val_size)
-        train_ds = dataset.skip(test_size + val_size)
+        # Split into slices
+        test_paths = filtered_image_paths[:test_size]
+        test_labels = labels[:test_size]
 
-        # Map and batch each split
-        train_ds = train_ds.map(read_img_jpg).batch(batch_size)
-        val_ds = val_ds.map(read_img_jpg).batch(batch_size)
-        test_ds = test_ds.map(read_img_jpg).batch(batch_size)
+        val_paths = filtered_image_paths[test_size:test_size + val_size]
+        val_labels = labels[test_size:test_size + val_size]
 
-        return train_ds, val_ds, test_ds
+        train_paths = filtered_image_paths[test_size + val_size:]
+        train_labels = labels[test_size + val_size:]
+
+        # Create tf.data.Dataset for each
+        train_ds = tf.data.Dataset.from_tensor_slices((train_paths, train_labels)).map(read_img_jpg).batch(batch_size)
+        val_ds = tf.data.Dataset.from_tensor_slices((val_paths, val_labels)).map(read_img_jpg).batch(batch_size)
+        test_ds = tf.data.Dataset.from_tensor_slices((test_paths, test_labels)).map(read_img_jpg).batch(batch_size)
+
+        return train_ds, val_ds, test_ds, test_paths, test_labels
 
     else:
-        # Just map and batch
+        # Single dataset
+        dataset = tf.data.Dataset.from_tensor_slices((filtered_image_paths, labels))
         dataset = dataset.map(read_img_jpg).batch(batch_size)
-        return dataset
+        return dataset, filtered_image_paths, labels

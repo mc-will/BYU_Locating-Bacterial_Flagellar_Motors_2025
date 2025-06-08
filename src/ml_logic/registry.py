@@ -56,6 +56,33 @@ def mlflow_transition_model(current_stage: str, new_stage: str, model_name:str) 
     return None
 
 
+
+def load_model(model_name: str, stage='STAGING') -> keras.Model:
+    """
+    Return a saved model from MLFLOW (by "model_name")
+
+    Return None (but do not Raise) if no model is found
+    """
+    print(Fore.BLUE + f"\nLoad model [{model_name}] from MLflow..." + Style.RESET_ALL)
+
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    client = MlflowClient()
+
+    try:
+        model_versions = client.get_latest_versions(name=model_name, stages=[stage])
+        model_uri = model_versions[0].source
+        assert model_uri is not None
+    except:
+        print(f"\n❌ No model found with name {model_name} in stage {stage}")
+        return None
+
+    model = mlflow.tensorflow.load_model(model_uri=model_uri)
+
+    print("✅ model loaded from mlflow")
+
+    return model
+
+
 def mlflow_run(func):
     """
     Generic function to log params and results to MLflow along with TensorFlow auto-logging
