@@ -1,4 +1,5 @@
 data/
+models/
 .python-version
 .DS_Store
 
@@ -199,5 +200,3 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
-
-
