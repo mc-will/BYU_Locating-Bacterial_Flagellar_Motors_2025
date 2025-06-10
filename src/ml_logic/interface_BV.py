@@ -7,9 +7,9 @@ from dateutil.parser import parse
 import tensorflow as tf
 
 from src.params import *
-from src.ml_logic.model import train_model, evaluate_model
-from src.ml_logic.registry import save_model, save_results, load_model
-from src.ml_logic.registry import mlflow_run, mlflow_transition_model
+from src.ml_logic.model_BV import train_model, evaluate_model
+from src.ml_logic.registry_BV import save_model, save_results, load_model
+from src.ml_logic.registry_BV import mlflow_run, mlflow_transition_model
 
 
 
