@@ -1,9 +1,16 @@
-import os
+import matplotlib.pyplot as plt
+import matplotlib.image as img
+import pandas as pd
+import tensorflow as tf
 import numpy as np
 import pandas as pd
+
+import os
+import glob
 import keras
-import matplotlib.image as img
-import tensorflow as tf
+
+from sklearn.metrics import classification_report
+from sklearn.metrics import fbeta_score
 
 MODEL_CLASSIF_URI = 'https://storage.cloud.google.com/models-wagon1992-group-project/7/06ba2fef2e314aba94bdf6286c0440cc/artifacts/model/data/model.keras'
 #MODEL_X_Y_URI =
@@ -13,34 +20,259 @@ test_tomos = ['tomo_dae195', 'tomo_f2fa4a', 'tomo_cabaa0', 'tomo_f7f28b', 'tomo_
 
 df = pd.read_csv('../data/csv_raw/train_labels.csv')
 
-df_test = df[df['tomo_id'].isin(test_tomos)]
+#### TODO utiliser le code packager ####
+def select_tomo_ids(df, number_of_slices=[300], number_of_motors=[0, 1], y_shape_range=(924, 960), x_shape_range=(924, 960)) -> pd.Series:
+    '''
+    Return the list of the tomo_ids obtained by filtering the DataFrame base on the given parameters
 
-path = f'../data/pictures_process/adaptequal_1_padded'
+            Parameters:
+                    df (pd.Dataframe): the dataset to filter
+                    number_of_slices (list:int): number of slices per tomogram
+                    max_number_of_motors (list:int): max number of motors
+                    y_shape_range(tuple:int): tuple of the (min, max) y size of pictures
+                    x_shape_range(tuple:int): tuple of the (min, max) x size of pictures
 
-X_test = [img.imread(f'{path}/{tomo}.jpg')/255 for tomo in test_tomos]
-y_test = df_test.Number_of_motors
+            Returns:
+                    pd.Series: pandas Series of the tomo_ids corresponding to the filter
+    '''
+    df = df[(df['Array_shape_axis_1'] >= y_shape_range[0]) & (df['Array_shape_axis_2'] <= y_shape_range[1])]
+    df = df[(df['Array_shape_axis_1'] >= x_shape_range[0]) & (df['Array_shape_axis_2'] <= x_shape_range[1])]
+    df = df[(df['Array_shape_axis_0'].isin(number_of_slices)) & (df['Number_of_motors'].isin(number_of_motors))]
+
+
+    return df.tomo_id
+def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
+
+    ''''
+    function to return the path to the selected images (which type, which tomos, how many motors,
+    shape of the images)
+    Parameters:
+    ----------
+    df = database (train)
+    dir_images(str) = directory with the images we want to feed to the model
+    num_slices, num_motors, y_shape_range, x_shape_range = params for the select_tomo_ids function
+
+    Returns:
+    -------
+    filtered_image_paths (list or np.array): List of image paths.
+
+    labels (np.array or list): Corresponding labels.
+    '''
+
+   # Step 1: Filter tomos
+    tomo_ids = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors)
+    df_select = df[df['tomo_id'].isin(tomo_ids)].copy()
+
+    # Step 2: Set up labels
+    df_select['motor_coord'] = df_select.apply(lambda row: (row['Motor_axis_2'], row['Motor_axis_1']), axis=1)
+
+    # Step 3: Load all images
+    dir_mean_image = f'../data/pictures_process/{dir_images}'
+    all_images = glob.glob(os.path.join(dir_mean_image, '**', '*.jpg'), recursive=True)
+
+    print(f"Found {len(all_images)} images in {dir_mean_image}")
+
+    # Step 4: Match images using substring matching
+    filtered_image_paths = []
+    labels = []
+
+    for _, row in df_select.iterrows():
+        tomo_id = row['tomo_id']
+        matched = [p for p in all_images if tomo_id in os.path.basename(p)]
+
+        if matched:
+            filtered_image_paths.append(matched[0])  # If multiple, take the first
+            labels.append(row['Number_of_motors'])
+        else:
+            print(f"⚠️ No image found for tomo_id: {tomo_id}")
+
+    print(f"Matched {len(filtered_image_paths)} image-label pairs")
+
+    labels = np.array(labels, dtype=np.float32)
+    return filtered_image_paths, labels
+def read_img_jpg(path, label):
+    """
+    Reads a JPEG image from a file path, decodes it as a grayscale image (1 channel),
+    normalizes pixel values to the range [0, 1], and returns it along with its label.
+
+    Parameters:
+    ----------
+    path : tf.Tensor
+        A scalar string tensor representing the file path to the JPEG image.
+
+    label : tf.Tensor or any
+        The label associated with the image (e.g., coordinates or class ID).
+
+    Returns:
+    -------
+    img : tf.Tensor
+        A 3D float32 tensor of shape (height, width, 1) representing the normalized image.
+
+    label : same as input
+        The original label passed in, unchanged.
+    """
+    img = tf.io.read_file(path)
+    img = tf.image.decode_jpeg(img, channels=1)
+    img = tf.cast(img, tf.float32) / 255.0  # normalize to [0, 1]
+    return img, label
+def batches_images_ram(
+    read_img_jpg,
+    filtered_image_paths,
+    labels,
+    shuffle=True,
+    batch_size=32,
+    split=False,
+    val_fraction=0.2,
+    test_fraction=0.2,
+    seed=42
+):
+    """
+    Load images and labels as tf.data.Dataset, optionally shuffle and batch,
+    and optionally split into train/val/test datasets.
+
+    Parameters:
+    -----------
+    read_img_jpg : function
+        Function to load and preprocess image from path.
+
+    filtered_image_paths : list or np.array
+        List of image paths.
+
+    labels : np.array or list
+        Corresponding labels.
+
+    shuffle : bool, default=True
+        Whether to shuffle the dataset.
+
+    batch_size : int, default=32
+        Batch size.
+
+    split : bool, default=False
+        Whether to split dataset into train/val/test.
+
+    val_fraction : float, default=0.2
+        Fraction of data for validation.
+
+    test_fraction : float, default=0.2
+        Fraction of data for testing.
+
+    seed : int, default=42
+        Random seed for shuffling.
+
+    Returns:
+    --------
+    If split=False:
+        dataset : tf.data.Dataset
+            Dataset with (image, label) pairs, batched and optionally shuffled.
+
+    If split=True:
+        train_ds, val_ds, test_ds : tf.data.Dataset
+            The three splits, all batched and shuffled as specified.
+    """
+
+    dataset_size = len(filtered_image_paths)
+    # Combine and optionally shuffle the data as a list of tuples
+    data = list(zip(filtered_image_paths, labels))
+    if shuffle:
+        rng = np.random.default_rng(seed)
+        rng.shuffle(data)
+
+    # Unzip the shuffled data back
+    filtered_image_paths, labels = zip(*data)
+
+    # Convert back to lists or arrays
+    filtered_image_paths = list(filtered_image_paths)
+    labels = list(labels)
+
+    if split:
+        # Compute sizes
+        val_size = int(val_fraction * dataset_size)
+        test_size = int(test_fraction * dataset_size)
+        train_size = dataset_size - val_size - test_size
+
+        # Split into slices
+        test_paths = filtered_image_paths[:test_size]
+        print(test_paths)
+        test_labels = labels[:test_size]
+
+        val_paths = filtered_image_paths[test_size:test_size + val_size]
+        print(val_paths)
+        val_labels = labels[test_size:test_size + val_size]
+
+        train_paths = filtered_image_paths[test_size + val_size:]
+        print(train_paths)
+        train_labels = labels[test_size + val_size:]
+
+        # Create tf.data.Dataset for each
+        train_ds = tf.data.Dataset.from_tensor_slices((train_paths, train_labels)).map(read_img_jpg).batch(batch_size)
+        val_ds = tf.data.Dataset.from_tensor_slices((val_paths, val_labels)).map(read_img_jpg).batch(batch_size)
+        test_ds = tf.data.Dataset.from_tensor_slices((test_paths, test_labels)).map(read_img_jpg).batch(batch_size)
+
+        return train_ds, val_ds, test_ds #, test_paths, test_labels
+
+    else:
+        # Single dataset
+        dataset = tf.data.Dataset.from_tensor_slices((filtered_image_paths, labels))
+        dataset = dataset.map(read_img_jpg).batch(batch_size)
+        return dataset, filtered_image_paths, labels
 
 
 ####### Motor Detection #######
-classif_model = keras.saving.load_model('dl_gcp.keras') # changer le nom
 
-preds = []
+### TODO à packager ###
+def generate_base_data():
+  all_slices_number = df['Array_shape_axis_0'].unique()
 
-for X in X_test:
-    X = X[:, :, 0]
-    X = tf.expand_dims(X, axis=-1)
-    X = tf.expand_dims(X, axis=0)
-    preds.append(float(classif_model.predict(X)))
+  filtered_image_paths,labels = selection_images_labels(df, 'adaptequal_1_padded', num_slices=list(all_slices_number), num_motors=[0, 1])
 
-df_test['Motor_pred'] = preds
+  train_ds, val_ds, test_ds = batches_images_ram(
+      read_img_jpg,
+      filtered_image_paths,
+      labels,
+      shuffle=True,
+      batch_size=32,
+      split=True,
+      val_fraction=0.2,
+      test_fraction=0.2,
+      seed=42)
 
-df_regression = df_test[df_test['Motor_pred'] >= 0.50]
+  return train_ds, val_ds, test_ds
 
+train_ds, val_ds, test_ds = generate_base_data()
 
+X_test = []
+y_test = []
 
+for batch_x, batch_y in test_ds:
+    X_test.append(batch_x.numpy())
+    y_test.append(batch_y.numpy())
 
+X_test = np.concatenate(X_test, axis=0)
+y_test = np.concatenate(y_test, axis=0)
+
+classif_model = keras.saving.load_model('../models/classif.keras')
+
+y_pred = classif_model.predict(X_test)
+
+y_pred_labels = (y_pred > 0.5).astype(int)
+
+sklearn_score = fbeta_score(y_test, y_pred_labels, beta=2)
+print(f'sklearn_score raw: {sklearn_score}')
+
+pred_dict = {
+    'tomo_id': test_tomos,
+    'pred': y_pred_labels.tolist()
+}
+
+prediction_df = pd.DataFrame.from_dict(pred_dict)
+
+prediction_df['pred'] = prediction_df['pred'].apply(lambda x: x[0])
+
+df_preds = pd.merge(df, prediction_df, on='tomo_id', how='inner')
 
 ####### Motor Position #######
+df_regression = df_preds[(df_preds["pred"] == 1) & (df_preds["Number_of_motors"] == 1)]
+
 ### X, Y ###
 
 
