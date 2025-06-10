@@ -40,7 +40,7 @@ def train_model(
         verbose=1
     )
 
-    print(f"✅ Model trained with min val MSE: {round(np.min(history.history['val_mse']), 2)}")
+    print(f"✅ Model trained with min val euclidean loss: {round(np.min(history.history['val_euclidean_loss']), 2)}")
 
     return model, history
 

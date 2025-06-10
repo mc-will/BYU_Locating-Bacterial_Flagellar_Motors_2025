@@ -7,6 +7,7 @@ from dateutil.parser import parse
 from keras.callbacks import EarlyStopping
 
 from params import *
+
 from ml_logic.model import train_model, evaluate_model
 from ml_logic.registry import save_model, save_results, load_model
 from ml_logic.registry import mlflow_run, mlflow_transition_model
@@ -55,7 +56,7 @@ def train(model,
         patience=patience
     )
 
-    val_mse = np.min(history.history['val_mse'])
+    val_euclidean_loss = np.min(history.history['val_euclidean_loss'])
 
     params = dict(
         model_type=model_type,
@@ -64,7 +65,7 @@ def train(model,
         # checker le cours pour d'autres paramètres à intégrer
     )
 
-    save_results(params=params, metrics=dict(mse=val_mse))
+    save_results(params=params, metrics=dict(euclidean_loss=val_euclidean_loss))
 
     save_model(model_name, model=model)
 
