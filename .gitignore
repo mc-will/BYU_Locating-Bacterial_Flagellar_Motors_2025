@@ -2,6 +2,8 @@ data/
 models/
 .python-version
 .DS_Store
+config.yaml
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
