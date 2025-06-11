@@ -7,7 +7,8 @@ import glob
 import sys
 sys.path.append('../src')
 
-from src.utils.data import get_csv_from_bq,select_tomo_ids
+from utils.data import get_csv_from_bq,select_tomo_ids
+# from src.utils.data import get_csv_from_bq,select_tomo_ids
 
 def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
 
@@ -28,6 +29,7 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
     '''
 
    # Step 1: Filter tomos
+
     tomo_ids = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors)
     df_select = df[df['tomo_id'].isin(tomo_ids)].copy()
 
@@ -55,7 +57,7 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
             print(f"⚠️ No image found for tomo_id: {tomo_id}")
 
     print(f"Matched {len(filtered_image_paths)} image-label pairs")
-
+    
     labels = np.array(labels, dtype=np.float32)
     return filtered_image_paths, labels
 

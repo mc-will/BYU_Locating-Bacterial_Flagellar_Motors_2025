@@ -1,5 +1,8 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
-setup(name='source',
-      description="code for flagellar motor project",
-      packages=["src"]) 
+setup(
+    name='source',
+    description="Code for flagellar motor project",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+)
