@@ -12,11 +12,14 @@ import keras
 from sklearn.metrics import classification_report
 from sklearn.metrics import fbeta_score
 
+from keras.preprocessing.image import load_img, img_to_array
+
+from PIL import Image
+
 MODEL_CLASSIF_URI = 'https://storage.cloud.google.com/models-wagon1992-group-project/7/06ba2fef2e314aba94bdf6286c0440cc/artifacts/model/data/model.keras'
 MODEL_X_Y_URI = 'https://storage.cloud.google.com/models-wagon1992-group-project/8/fcaa4e2b1d574cc1beea21aa251ce7f2/artifacts/model/data/model.keras'
-#MODEL_Z_URI =
+MODEL_Z_URI_WILL = 'https://storage.cloud.google.com/byu19922/willreg_z.keras'
 
-#RUN_ID_BENE = 'cf6b5ad5143343418ead9fcb59be58c9'
 
 test_tomos = ['tomo_dae195', 'tomo_f2fa4a', 'tomo_cabaa0', 'tomo_f7f28b', 'tomo_ed1c97', 'tomo_ff505c', 'tomo_8f4d60', 'tomo_2aeb29', 'tomo_651ecd', 'tomo_e96200', 'tomo_0d4c9e', 'tomo_2dcd5c', 'tomo_983fce', 'tomo_7b1ee3', 'tomo_8b6795', 'tomo_dcb9b4', 'tomo_e764a7', 'tomo_e26c6b', 'tomo_331130', 'tomo_f8b835', 'tomo_746d88', 'tomo_9cd09e', 'tomo_b9eb9a', 'tomo_cf0875', 'tomo_7cf523', 'tomo_fd41c4', 'tomo_54e1a7', 'tomo_ca472a', 'tomo_6478e5', 'tomo_e9b7f2', 'tomo_247826', 'tomo_675583', 'tomo_f0adfc', 'tomo_378f43', 'tomo_19a313', 'tomo_172f08', 'tomo_f3e449', 'tomo_3b83c7', 'tomo_8c13d9', 'tomo_2c607f', 'tomo_c11e12', 'tomo_412d88', 'tomo_4b124b', 'tomo_38c2a6', 'tomo_ec1314', 'tomo_1c38fd', 'tomo_e63ab4', 'tomo_f07244', 'tomo_210371', 'tomo_d6e3c7', 'tomo_935f8a', 'tomo_a4c52f', 'tomo_a46b26', 'tomo_fadbe2', 'tomo_b28579', 'tomo_35ec84', 'tomo_369cce', 'tomo_6c203d', 'tomo_b80310', 'tomo_640a74', 'tomo_22976c', 'tomo_d21396', 'tomo_ecbc12', 'tomo_040b80', 'tomo_85708b', 'tomo_b98cf6', 'tomo_e1e5d3', 'tomo_138018', 'tomo_3264bc', 'tomo_e50f04', 'tomo_d723cd', 'tomo_2a6ca2', 'tomo_1f0e78', 'tomo_67565e', 'tomo_fd5b38', 'tomo_05b39c', 'tomo_372a5c', 'tomo_c3619a', 'tomo_ba76d8', 'tomo_a67e9f', 'tomo_a6646f', 'tomo_db656f', 'tomo_4102f1', 'tomo_bb5ac1', 'tomo_4ed9de', 'tomo_61e947', 'tomo_1da0da', 'tomo_821255', 'tomo_3e7783', 'tomo_c84b46', 'tomo_974fd4', 'tomo_444829', 'tomo_b50c0f', 'tomo_2a6091', 'tomo_fa5d78', 'tomo_bdd3a0', 'tomo_1c2534', 'tomo_d916dc', 'tomo_bdc097', 'tomo_7036ee', 'tomo_cacb75', 'tomo_5b359d', 'tomo_7fa3b1', 'tomo_049310', 'tomo_dd36c9', 'tomo_e3864f', 'tomo_0a8f05', 'tomo_ff7c20', 'tomo_0fab19', 'tomo_1c75ac', 'tomo_d0699e', 'tomo_1e9980', 'tomo_4ee35e', 'tomo_6943e6', 'tomo_99a3ce']
 
@@ -272,37 +275,188 @@ prediction_df['pred'] = prediction_df['pred'].apply(lambda x: x[0])
 
 df_preds = pd.merge(df, prediction_df, on='tomo_id', how='inner')
 
+sklearn_score = fbeta_score(y_test, y_pred_labels, beta=2)
+print(f'Fbeta score on motor presence prediction: {sklearn_score}')
+
 ####### Motor Position #######
 df_regression = df_preds[(df_preds["pred"] == 1) & (df_preds["Number_of_motors"] == 1)]
 
 ### X, Y ###
+reg_x_y = keras.saving.load_model('../models/reg_x_y.keras', compile=False)
+
+################# A Packager #################
+IMG_SIZE_ORIG = 960
+IMG_SIZE = 240
+MASK_RADIUS = 20  # pixels
+
+def get_image_path(tomo_id):
+    img_dir = '../data/pictures_process/adaptequal_1_padded'
+    return os.path.join(img_dir, f'{tomo_id}.jpg')
+
+def get_mask_path(tomo_id):
+    img_dir = '../data/pictures_process/mask_multiclass/mask_multiclass'
+    return os.path.join(img_dir, f'{tomo_id}.png')
+
+def get_tomo_ids():
+    folder = '../data/pictures_process/mask_multiclass/mask_multiclass'
+    file_list = [
+        os.path.splitext(f)[0]
+        for f in os.listdir(folder)
+        if f.endswith('.png')
+    ]
+    return file_list
+
+def get_xy(tomo_id):
+    csv_path = '../data/csv_raw/train_labels.csv'
+    df = pd.read_csv(csv_path)
+    y = df[df['tomo_id'] == tomo_id]['Motor_axis_1'].values[0]
+    x = df[df['tomo_id'] == tomo_id]['Motor_axis_2'].values[0]
+    return x, y
+
+def rgba_mask_to_class_indices(mask_path, target_size=(IMG_SIZE, IMG_SIZE)):
+    mask = Image.open(mask_path).convert('RGBA').resize(target_size, resample=Image.NEAREST)
+    mask_np = np.array(mask)
+    class_indices = np.zeros(mask_np.shape[:2], dtype=np.uint8)
+    # Transparent (alpha == 0)
+    class_indices[mask_np[..., 3] == 0] = 0
+    # Rouge
+    red = (mask_np[..., 0] > 127) & (mask_np[..., 1] < 127) & (mask_np[..., 2] < 127) & (mask_np[..., 3] > 0)
+    class_indices[red] = 1
+    # Vert
+    green = (mask_np[..., 0] < 127) & (mask_np[..., 1] > 127) & (mask_np[..., 2] < 127) & (mask_np[..., 3] > 0)
+    class_indices[green] = 2
+    # Bleu
+    blue = (mask_np[..., 0] < 127) & (mask_np[..., 1] < 127) & (mask_np[..., 2] > 127) & (mask_np[..., 3] > 0)
+    class_indices[blue] = 3
+    return class_indices
+
+def load_data(ids):
+    X = []
+    Y_mask = []
+    Y_motor_xy = []
+    tomo_ids = []  # <-- Ajout ici
+
+    for tomo_id in ids:
+        if tomo_id in get_tomo_ids():
+            image_path = get_image_path(tomo_id)
+            mask_path = get_mask_path(tomo_id)
+            img = load_img(image_path, color_mode='grayscale', target_size=(IMG_SIZE, IMG_SIZE))
+            img_array = img_to_array(img) / 255.0
+            img_rgb = np.repeat(img_array, 3, axis=-1)
+            X.append(img_rgb)
+
+            mask_array = rgba_mask_to_class_indices(mask_path, target_size=(IMG_SIZE, IMG_SIZE))
+            Y_mask.append(mask_array)
+
+            x, y = get_xy(tomo_id)
+            Y_motor_xy.append([x*IMG_SIZE/IMG_SIZE_ORIG, y*IMG_SIZE/IMG_SIZE_ORIG])
+
+            tomo_ids.append(tomo_id)  # <-- Ajout ici
+
+    # Conversion en np.array
+    npX = np.array(X, dtype=np.float32)
+    npY_mask = np.array(Y_mask, dtype=np.float32)
+    npY_motor_xy = np.array(Y_motor_xy, dtype=np.float32)
+
+    result = {
+        'X': npX,
+        'Y': npY_mask,
+        'motor_xy': npY_motor_xy,
+        'tomo_ids': tomo_ids
+    }
+
+    return result
+################# A Packager #################
 
 
+tomo_id_for_reg = df_regression.tomo_id
+
+data = load_data(tomo_id_for_reg)
+
+x_dict = {}
+y_dict = {}
+
+for i, X in enumerate(data['X']):
+    pred = reg_x_y.predict(np.expand_dims(data["X"][i], axis=0))  # shape: (1, H, W, 4)
+    mask_pred = np.argmax(pred[0], axis=-1)  # shape: (H, W)
+    # Coordonnées prédites "moteur"
+    ys, xs = np.where(mask_pred == 3)
+    if len(xs) > 0:
+        x_center = np.mean(xs)
+        y_center = np.mean(ys)
+        print(f"Moteur centre prédit : x = {x_center:.1f}, y = {y_center:.1f}")
+        x_dict.update({data["tomo_ids"][i]: x_center*4})
+        y_dict.update({data["tomo_ids"][i]: y_center*4})
+    else:
+        print("Aucune zone moteur détectée")
+        ### x_center, y_center = None, None
+        x_dict.update({data["tomo_ids"][i]: -1})
+        y_dict.update({data["tomo_ids"][i]: -1})
 
 
+x_df = pd.DataFrame.from_dict(x_dict, orient='index', columns=['Pred_motor_axis_2']).reset_index()
+y_df = pd.DataFrame.from_dict(y_dict, orient='index', columns=['Pred_motor_axis_1']).reset_index()
+
+motors_not_found = x_df[x_df['Pred_motor_axis_2'] == -1].shape[0]
+total_motors = x_df.shape[0]
+print(f'{motors_not_found} out of {total_motors} motors not found')
+
+
+df_regression = pd.merge(df_regression, x_df, left_on='tomo_id', right_on='index', how='inner')
+df_regression = pd.merge(df_regression, y_df, left_on='tomo_id', right_on='index', how='inner')
+df_regression = df_regression.drop(columns=['index_x', 'index_y'])
+
+df_regression['euclid_dist'] = tf.sqrt((df_regression['Motor_axis_2'] - df_regression['Pred_motor_axis_2'])**2 + (df_regression['Motor_axis_1'] - df_regression['Pred_motor_axis_1'])**2)
+
+df_regression.loc[df_regression['Pred_motor_axis_1'] == -1, 'euclid_dist'] = np.nan
+
+
+# preprocessing preds with no motors or no motors predicted
+tmp = df_preds[(df_preds['Number_of_motors'] == 0) | ((df_preds['Number_of_motors'] == 1) & (df_preds['pred'] == 0))]
+tmp.loc[:,'Pred_motor_axis_2'] = -1
+tmp.loc[:,'Pred_motor_axis_1'] = -1
+tmp.loc[:,'euclid_dist'] = np.nan
+
+df_full = pd.concat([df_regression, tmp], axis=0)
+
+assert df_full.shape[0] == df_preds.shape[0]
 ### Z ###
 
 
 ####### Range check #######
+df_processed = df_full.copy()
+
+df_processed['range'] = df_processed['Voxel_spacing'] * df_processed['euclid_dist']
+
+# histplot
+plt.hist(df_processed['range'], bins=40)
+plt.vlines(1000, ymin=0, ymax=8, color='r', label='Kaggle range limit')
+plt.vlines(2000, ymin=0, ymax=8, color='r', linestyles='dashed', label='Custom range limit')
+plt.title('Histogram of euclidean distance between y_true and y_pred')
+plt.legend()
+
+
+# boxplot
+df_processed.boxplot(column='range')
+plt.hlines(1000, xmin=0.5, xmax=1.5, color='r', label='Kaggle range limit')
+plt.hlines(2000, xmin=0.5, xmax=1.5, color='r', linestyles='dashed', label='Custom range limit')
+plt.title('Boxplot of euclidean distance between y_true and y_pred')
+plt.legend()
+
+
+
+
 
 ####### Final fbetascore #######
+ANGSTROM_RANGE = 2000
 
+t = df_processed.copy()
 
+t.loc[t['range'] > ANGSTROM_RANGE, 'pred'] = 0
+t.loc[(t['Number_of_motors'] == 1) & (t['pred'] == 1) & (t['Pred_motor_axis_2'] == -1), 'pred'] = 0
 
-for tomo_id in df_test.tomo_id:
-    row_true = df_test[df_test['tomo_id'] == tomo_id].iloc[0]
-    x_true, y_true, z_true = row_true['Motor_axis_0'], row_true['Motor_axis_1'], row_true['Motor_axis_2']
-    row_pred = df_regression[df_regression['tomo_id'] == tomo_id].iloc[0]
-    x_pred, y_pred, z_pred = row_true['Pred_motor_axis_0'], row_true['Pred_motor_axis_1'], row_true['Pred_motor_axis_2']
-    euclid_distance = tf.norm(tf.Tensor(x_true, y_true, z_true)-tf.Tensor(x_pred, y_pred, z_pred), ord='euclidean')
-    if euclid_distance > 3000:
-        df_test[df_test['tomo_id'] == tomo_id]['Motor_pred'] = 0
-
-
-from sklearn.metrics import fbeta_score
-
-final_score = fbeta_score(df_test.Number_of_motors, df_test.Motor_pred, beta=2)
-print(f'And the final score is: {final_score}')
+final_fbeta_score = fbeta_score(t['Number_of_motors'], t['pred'], beta=2)
+print(f'final_fbeta_score: {final_fbeta_score}')
 
 
 
