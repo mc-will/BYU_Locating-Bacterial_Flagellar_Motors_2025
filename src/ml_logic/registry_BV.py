@@ -2,12 +2,13 @@ import glob
 import os
 import time
 import pickle
+import tensorflow as tf
 
 from colorama import Fore, Style
 from tensorflow import keras
 from google.cloud import storage
 
-from params import *
+from src.params import *
 import mlflow
 from mlflow.tracking import MlflowClient
 
@@ -57,12 +58,10 @@ def mlflow_transition_model(current_stage: str, new_stage: str, model_name:str) 
 
 
 
-def load_model(model_name: str, stage='STAGING') -> keras.Model:
-    """
-    Return a saved model from MLFLOW (by "model_name")
+def euclidean_loss(y_true, y_pred):
+    return tf.reduce_mean(tf.norm(y_pred - y_true, axis=1))
 
-    Return None (but do not Raise) if no model is found
-    """
+def load_model(model_name: str, stage='STAGING') -> tf.keras.Model:
     print(Fore.BLUE + f"\nLoad model [{model_name}] from MLflow..." + Style.RESET_ALL)
 
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -72,13 +71,21 @@ def load_model(model_name: str, stage='STAGING') -> keras.Model:
         model_versions = client.get_latest_versions(name=model_name, stages=[stage])
         model_uri = model_versions[0].source
         assert model_uri is not None
-    except:
+    except Exception as e:
         print(f"\n❌ No model found with name {model_name} in stage {stage}")
         return None
 
+    # Load the model without compile arg (not supported)
     model = mlflow.tensorflow.load_model(model_uri=model_uri)
 
-    print("✅ model loaded from mlflow")
+    # Manually compile with your custom loss (and optimizer)
+    model.compile(
+        optimizer='adam',  # or the optimizer you used
+        loss=euclidean_loss,
+        metrics=[]  # add metrics if you want
+    )
+
+    print("✅ Model loaded and compiled with custom loss")
 
     return model
 

@@ -40,10 +40,7 @@ def train_model(
         verbose=1
     )
 
-
     print(f"✅ Model trained with min val Eucledian Loss: {round(np.min(history.history['val_euclidean_loss']), 2)}")
-
-
 
     return model, history
 

@@ -7,10 +7,10 @@ import glob
 import sys
 sys.path.append('../src')
 
-from src.utils.data import get_csv_from_bq,select_tomo_ids
+from utils.data import get_csv_from_bq,select_tomo_ids
+# from src.utils.data import get_csv_from_bq,select_tomo_ids
 
-def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1],
-                       y_shape_range=(960, 960), x_shape_range=(928, 928)):
+def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
 
     ''''
     function to return the path to the selected images (which type, which tomos, how many motors,
@@ -27,35 +27,39 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1],
 
     labels (np.array or list): Corresponding labels.
     '''
+
+   # Step 1: Filter tomos
+
+    tomo_ids = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors)
+    df_select = df[df['tomo_id'].isin(tomo_ids)].copy()
+
+    # Step 2: Set up labels
+    df_select['motor_coord'] = df_select.apply(lambda row: (row['Motor_axis_2'], row['Motor_axis_1']), axis=1)
     
-     # Selecting tomos according to our whishes
-    tomo_ids_1 = select_tomo_ids(df, number_of_slices=num_slices, number_of_motors=num_motors,
-                    y_shape_range=y_shape_range, x_shape_range=x_shape_range)
-
-    # Creating database with our selected tomos
-    df_select = df[df['tomo_id'].isin(tomo_ids_1)]
-
-    # Selecting directory with images we want to feed to our model (e.x., mean, adaptequal)
+    # Step 3: Load all images
     dir_mean_image = f'../data/pictures_process/{dir_images}'
-    keywords = set(tomo_ids_1)
-
-    # Find all jpg image paths recursively
     all_images = glob.glob(os.path.join(dir_mean_image, '**', '*.jpg'), recursive=True)
 
-    # Filter image paths where the filename contains any of the keywords
-    filtered_image_paths = [
-        path for path in all_images
-        if any(kw in os.path.basename(path) for kw in keywords)
-    ]
+    print(f"Found {len(all_images)} images in {dir_mean_image}")
 
-    # Defining the motor coordinates as a tuple, to then use as a target (we will call them labels)
-    df_select['motor_coord'] = df_select.apply(lambda row: (row['Motor_axis_2'], row['Motor_axis_1']), axis=1).copy()
+    # Step 4: Match images using substring matching
+    filtered_image_paths = []
+    labels = []
 
+    for _, row in df_select.iterrows():
+        tomo_id = row['tomo_id']
+        matched = [p for p in all_images if tomo_id in os.path.basename(p)]
 
-    # Prepare labels as float32 NumPy array
-    labels = np.array(df_select['motor_coord'].tolist(), dtype=np.float32)
+        if matched:
+            filtered_image_paths.append(matched[0])  # If multiple, take the first
+            labels.append(row['motor_coord'])
+        else:
+            print(f"⚠️ No image found for tomo_id: {tomo_id}")
 
-    return filtered_image_paths,labels
+    print(f"Matched {len(filtered_image_paths)} image-label pairs")
+    
+    labels = np.array(labels, dtype=np.float32)
+    return filtered_image_paths, labels
 
 
 # Define image reading function
@@ -143,13 +147,18 @@ def batches_images_ram(
     """
 
     dataset_size = len(filtered_image_paths)
-
-    # Create dataset from (path, label)
-    dataset = tf.data.Dataset.from_tensor_slices((filtered_image_paths, labels))
-
-    # Shuffle dataset if requested
+    # Combine and optionally shuffle the data as a list of tuples
+    data = list(zip(filtered_image_paths, labels))
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=dataset_size, seed=seed)
+        rng = np.random.default_rng(seed)
+        rng.shuffle(data)
+
+    # Unzip the shuffled data back
+    filtered_image_paths, labels = zip(*data)
+
+    # Convert back to lists or arrays
+    filtered_image_paths = list(filtered_image_paths)
+    labels = list(labels)
 
     if split:
         # Compute sizes
@@ -157,19 +166,25 @@ def batches_images_ram(
         test_size = int(test_fraction * dataset_size)
         train_size = dataset_size - val_size - test_size
 
-        # Split datasets carefully
-        test_ds = dataset.take(test_size)
-        val_ds = dataset.skip(test_size).take(val_size)
-        train_ds = dataset.skip(test_size + val_size)
+        # Split into slices
+        test_paths = filtered_image_paths[:test_size]
+        test_labels = labels[:test_size]
 
-        # Map and batch each split
-        train_ds = train_ds.map(read_img_jpg).batch(batch_size)
-        val_ds = val_ds.map(read_img_jpg).batch(batch_size)
-        test_ds = test_ds.map(read_img_jpg).batch(batch_size)
+        val_paths = filtered_image_paths[test_size:test_size + val_size]
+        val_labels = labels[test_size:test_size + val_size]
 
-        return train_ds, val_ds, test_ds
+        train_paths = filtered_image_paths[test_size + val_size:]
+        train_labels = labels[test_size + val_size:]
+
+        # Create tf.data.Dataset for each
+        train_ds = tf.data.Dataset.from_tensor_slices((train_paths, train_labels)).map(read_img_jpg).batch(batch_size)
+        val_ds = tf.data.Dataset.from_tensor_slices((val_paths, val_labels)).map(read_img_jpg).batch(batch_size)
+        test_ds = tf.data.Dataset.from_tensor_slices((test_paths, test_labels)).map(read_img_jpg).batch(batch_size)
+
+        return train_ds, val_ds, test_ds, test_paths, test_labels
 
     else:
-        # Just map and batch
+        # Single dataset
+        dataset = tf.data.Dataset.from_tensor_slices((filtered_image_paths, labels))
         dataset = dataset.map(read_img_jpg).batch(batch_size)
-        return dataset
+        return dataset, filtered_image_paths, labels
