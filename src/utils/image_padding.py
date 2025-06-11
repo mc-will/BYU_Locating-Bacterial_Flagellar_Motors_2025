@@ -47,5 +47,4 @@ def padd_mean_picture(input_dir, output_dir, size = 960):
 
 if __name__ == '__main__':
     #padd_mean_picture(input_dir='./data/pictures_process/mean_image/',output_dir = './data/pictures_process/mean_image_padded/')
-    padd_mean_picture(input_dir='./data/pictures_process/adaptequal_05/',output_dir = './data/pictures_process/adaptequal_05_padded/')
-
+    padd_mean_picture(input_dir='./data/pictures_process/mean_image/',output_dir = './data/pictures_process/mean_image_padded/')

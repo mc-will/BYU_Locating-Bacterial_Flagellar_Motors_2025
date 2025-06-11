@@ -4,17 +4,12 @@ import pandas as pd
 from pathlib import Path
 from colorama import Fore, Style
 from dateutil.parser import parse
-
 import tensorflow as tf
 
-from keras.callbacks import EarlyStopping
-
-
-from params import *
-
-from ml_logic.model import train_model, evaluate_model
-from ml_logic.registry import save_model, save_results, load_model
-from ml_logic.registry import mlflow_run, mlflow_transition_model
+from src.params import *
+from src.ml_logic.model_BV import train_model, evaluate_model
+from src.ml_logic.registry_BV import save_model, save_results, load_model
+from src.ml_logic.registry_BV import mlflow_run, mlflow_transition_model
 
 
 
@@ -62,9 +57,6 @@ def train(model,
 
     val_mse = np.min(history.history['val_euclidean_loss'])
 
-    val_euclidean_loss = np.min(history.history['val_euclidean_loss'])
-
-
     params = dict(
         model_type=model_type,
         preprocess_type=preprocess_type
@@ -72,13 +64,19 @@ def train(model,
         # checker le cours pour d'autres paramètres à intégrer
     )
 
-    save_results(params=params, metrics=dict(euclidean_loss=val_euclidean_loss))
+    save_results(params=params, metrics=dict(mse=val_mse))
 
     save_model(model_name, model=model)
 
     mlflow_transition_model("None", "staging", model_name=model_name)
 
     print("✅ train() done \n")
+
+
+
+
+
+
 
 @mlflow_run
 def evaluate(
@@ -109,7 +107,7 @@ def evaluate(
 
     return mse
 
-# to do check if need ml run
+
 def pred(X_pred: pd.DataFrame, model_name, stage='Staging') -> np.ndarray:
     """
     Make a prediction using the latest trained model
@@ -124,59 +122,3 @@ def pred(X_pred: pd.DataFrame, model_name, stage='Staging') -> np.ndarray:
 
     print("\n✅ prediction done: ", y_pred, y_pred.shape, "\n")
     return y_pred
-
-################# for model of calsification
-@mlflow_run
-def train_classification(
-        model,
-        X_train, y_train,
-        X_val, y_val,
-        model_type: str,
-        preprocess_type: str,
-        model_name: str,
-        batch_size = 32,
-        patience = 10
-    ) -> float:
-
-
-    print(Fore.GREEN + "\n🏋️ Starting model training ..." + Style.RESET_ALL)
-
-    es = EarlyStopping(
-        monitor="val_loss",
-        patience=patience,
-        restore_best_weights=True,
-        verbose=1
-    )
-
-    history = model.fit(
-        X_train,
-        y_train,
-        validation_data=[X_val,y_val],
-        epochs=10,
-        batch_size=batch_size,
-        callbacks=[es],
-        verbose=1
-    )
-
-    print('Cheack point matrics:', history.history.keys())
-
-    # f_beta_score = np.max(history.history['FBetaScore']) # Max
-    fbeta_score = np.max(history.history['fbeta_score']) # Max
-    params = dict(
-        model_type=model_type,
-        preprocess_type=preprocess_type
-        # rajouter le hash du commit
-        # checker le cours pour d'autres paramètres à intégrer
-    )
-
-    save_results(
-        params=params,
-        metrics=dict(f_betas_score=fbeta_score))
-
-    save_model(model_name,
-               model=model
-               )
-
-    mlflow_transition_model("None", "staging", model_name=model_name)
-
-    print("✅ train() done \n")
