@@ -3,6 +3,8 @@ models/
 .python-version
 .DS_Store
 config.yaml
+notebooks/mlruns/
+mlruns/
 
 
 # Byte-compiled / optimized / DLL files

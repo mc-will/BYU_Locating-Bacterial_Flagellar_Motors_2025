@@ -35,7 +35,7 @@ def selection_images_labels(df, dir_images, num_slices=[300], num_motors=[1]):
 
     # Step 2: Set up labels
     df_select['motor_coord'] = df_select.apply(lambda row: (row['Motor_axis_2'], row['Motor_axis_1']), axis=1)
-
+    
     # Step 3: Load all images
     dir_mean_image = f'../data/pictures_process/{dir_images}'
     all_images = glob.glob(os.path.join(dir_mean_image, '**', '*.jpg'), recursive=True)
