@@ -2,7 +2,7 @@
 
 LOMBA is the french acronym for 'Locating Bacterial Flagellar Motors'. 
 
-This is the repo for the group project of Le Wagon Data Science batch #1992. You can see the demo day presentation (in french) here. (TODO: mettre le lien de la vidéo)
+This is the repo for the group project of Le Wagon Data Science batch #1992. We will soon put the link to see the demo day presentation (in french) here.
 
 ## Description
 We used the data for the [BYU - Locating Bacterial Flagellar Motors 2025](https://www.kaggle.com/competitions/byu-locating-bacterial-flagellar-motors-2025). Here is the description of the challenge :
@@ -26,7 +26,8 @@ To cope with the limited time accorded to the project (~10 days), we reduced the
 
 To answer the challenge we created 3 models:
 
-TODO -mettre un graph ici
+![image](https://github.com/user-attachments/assets/da42082d-e96a-4359-b0c6-94d553cebf12)
+
 
 The first two models used 2D images, obtained by creating a 'mean' image of the tomogram (mean pixel value accross all images of the tomogram) and use local equalieation thanks to the `exposure.equalize_adapthist` method from the scikit-image package to increase contrast.
 
@@ -37,9 +38,6 @@ Then we predicted the x, y position of the motor within the tomogram. We had a g
 Then on the tomograms were we predicted x, y we use a third model to which we gave 3D data to obtain the z position, i.e. the slice where the motor was. We didn't loose much score at this step, as we ended with a fbeta score of: TODO mettre le fbeta score ici
 
 The path worth exploring is to predict z before x,y ; indeed we may have a be better at this first task, and we could then try to predict x, y on the predicted slice or a set of slice centered on the predicted slice (to get more information).
-
-## Run th project in your machine - TODO
-
 
 
 
