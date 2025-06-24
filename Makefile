@@ -5,11 +5,19 @@ cheer_up:
 tree:
 	tree -d -L 3
 
+# TODO :
+# commande pour charger les images / upload toutes les images au même endroit ?
+# commande pour charger les modèles / upload tous les modèles au même endroit ?
 
+# TODO déprécier
 create_src_structure:
 	mkdir -p src/utils
 	mkdir -p src/ml_logic/train
 	mkdir -p src/ml_logic/process
+
+
+pylint:
+  @find . -iname "*.py" -not -path "./tests/*" | xargs -n1 -I {} pylint --output-format=colorized {}; true
 
 .PHONY: rename
 
