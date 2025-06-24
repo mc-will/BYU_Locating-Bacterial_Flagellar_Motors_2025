@@ -12,7 +12,7 @@ We used the data for the [BYU - Locating Bacterial Flagellar Motors 2025](https:
 Tomograms are 3D reconstructed image from a set of 2D 'slices'. The challenge provided [this video](https://www.cellstructureatlas.org/6-2-flagellar-motor.html) to get a better understanding of tomograms within the scope of bacteria observations.
 
 The evaluation metrics was a Fbeta score with beta = 2. Fbeta score is the weighted harmonic mean of precision and recall ; beta > 1 gives more weight to recall, while beta < 1 favors precision.
-With beta = 2, the recall is twice as important as the precision. You can see below the formula for the Fbeta score, with tp as True positives and fn as False negatives:
+With beta = 2, the recall is twice as important as the precision. You can see below the formula for the Fbeta score, with tp as true positives and fn as false negatives:
 
 ![image](https://github.com/user-attachments/assets/7777e62c-e097-4e75-b59c-9945d09779f9)
 
@@ -31,11 +31,11 @@ To answer the challenge we created 3 models:
 
 The first two models used 2D images, obtained by creating a 'mean' image of the tomogram (mean pixel value accross all images of the tomogram) and use local equalieation thanks to the `exposure.equalize_adapthist` method from the scikit-image package to increase contrast.
 
-We first predicted the presence of a motor in tomogram. We had a good fbeta score on this task: TODO mettre le fbeta score ici
+We first predicted the presence of a motor in tomogram. We had a high fbeta score on this task: 0.90.
 
-Then we predicted the x, y position of the motor within the tomogram. We had a great decrease in our fbeta score, as it fell to : TODO mettre le fbeta score ici. There are two main reasons for a failed prediction of the position: either the distance between ground truth and prediction is greater than the threshold (TODO dire %), or the regression model can't find the class corresponding to the motor (TODO détailler ce point, @Pierre)
+Then we predicted the x, y position of the motor within the tomogram. We had a great decrease in our fbeta score, as it fell to : 0.64. There are two main reasons for a failed prediction of the position: either the distance between ground truth and prediction is greater than the threshold (11 % of tomograms classified as fn), or the regression model can't find the class corresponding to the motor (23 % of tomograms classified as fn). Indeed, we didn't directly predicted x and y. Within the train data we use feature engeenering by creating thress class corresponding to the bacteria, the flagella and the flagellar motor. The model prediction was the pixels associated with each class, and we use the sofcenter of the flaggelar motor class to get the predicted x and y.
 
-Then on the tomograms were we predicted x, y we use a third model to which we gave 3D data to obtain the z position, i.e. the slice where the motor was. We didn't loose much score at this step, as we ended with a fbeta score of: TODO mettre le fbeta score ici
+Then on the tomograms were we predicted x, y we use a third model to which we gave 3D data to obtain the z position, i.e. the slice where the motor was. We didn't loose much score at this step, as we ended with a fbeta score of: 0.62.
 
 The path worth exploring is to predict z before x,y ; indeed we may have a be better at this first task, and we could then try to predict x, y on the predicted slice or a set of slice centered on the predicted slice (to get more information).
 
