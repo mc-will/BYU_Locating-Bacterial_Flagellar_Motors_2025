@@ -25,8 +25,8 @@ To cope with the limited time accorded to the project (~10 days), we reduced the
   - we increased the prediction threshold from 1000 to 2000 Å
 
 To answer the challenge we created 3 models:
+<img width="1785" height="244" alt="image" src="https://github.com/user-attachments/assets/6232e520-1f8b-4e45-970e-157c1d74af9b" />
 
-![image](https://github.com/user-attachments/assets/da42082d-e96a-4359-b0c6-94d553cebf12)
 
 
 The first two models used 2D images, obtained by creating a 'mean' image of the tomogram (mean pixel value accross all images of the tomogram) and use local equalieation thanks to the `exposure.equalize_adapthist` method from the scikit-image package to increase contrast.
